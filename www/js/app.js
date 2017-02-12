@@ -36,10 +36,22 @@ angular.module('starter', ['ionic', 'starter.controllers'])
                 url: '/welcome',
                 views: {
                     'menuContent': {
-                        templateUrl: 'templates/welcome.html'
+                        templateUrl: 'templates/welcome.html',
+                        controller: 'welcomeCtrl'
                     }
                 }
             })
+
+            .state('app.survival', {
+                url: '/survival',
+                views: {
+                    menuContent: {
+                        templateUrl: 'templates/survival.html',
+                        controller: 'survivalCtrl'
+                    }
+                }
+            })
+
             .state('app.playlists', {
                 url: '/playlists',
                 views: {
