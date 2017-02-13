@@ -67,6 +67,7 @@ module.directive('survivalCurves', ['survival', function (survival) {
 
         var usableFeatures = getSurvivalHeaders(survivalData);
         survivalData = parseSurvivalData(survivalData, usableFeatures);
+        usableFeatures = removeOS_Months(usableFeatures);
 
         var optionsDiv = d3.select(el).append('div')
             .attr('id', 'options-div');
@@ -240,6 +241,12 @@ function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, connector
     //.attr('class', 'axis')
         .attr('transform', 'translate(' + svgWidth * 0.05 + ', 0)')
         .call(yAxis);
+}
+
+//remove os_months from grouping options
+function removeOS_Months(features) {
+    features.splice(features.indexOf('os_months'), 1);
+    return features;
 }
 
 //group the survival data by the selected feature
