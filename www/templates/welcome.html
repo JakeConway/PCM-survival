@@ -1,11 +1,12 @@
 <ion-view view-title="Welcome">
   <ion-content>
     <h1>Welcome to the dev version of PCM-survival</h1>
-      <h2>Please select your patients cancer type</h2>
+      <h2>Please select your patient</h2>
       <select id="cancer-type-select">
 
       </select>
-    <div welcome-directive cancertypes="cancerTypes" cbiocancerstudies="cbioCancerStudies">
+    <div welcome-directive cancertypes="cancerTypes" cbiocancerstudies="cbioCancerStudies" cancerdict="cancerDict"
+    patients="patients">
     </div>
     <div confirmation-table tabledata="tableData" selectedtype="selectedType">
         <div id="table-header-div"></div>
