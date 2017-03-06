@@ -109,6 +109,41 @@ angular.module('starter.controllers', [])
                 stad_tcga_pub: 'TNM_STAGE',
                 tgct_tcga: 'AJCC_CLINICAL_TUMOR_STAGE',
                 lihc_amc_prv: 'GRADE'
+            },
+            TUMOR_STAGE: function(stage) {
+                if(isInteger(stage)) {
+                    if(stage < 4) {
+                        if(stage == 0) {
+                            return undefined;
+                        }
+                        var str =  repeatLetter(stage);
+                        return str;
+                    }
+                    else {
+                        return "IV";
+                    }
+                }
+                else {
+                    str = stageHasIs(stage);
+                    return str;
+                }
+            },
+            'AJCC STAGE': function(stage) {
+                var str = stageHasIs(stage);
+                return str;
+            },
+            AJCC_PATHOLOGIC_TUMOR_STAGE: function(stage) {
+                var str = stageHasIs(stage);
+                return str;
+            },
+            PATH_N_STAGE: function(stage) {
+                var str = fromNMTStage(stage, "n");
+                return str;
+            },
+            CLIN_T_STAGE: function(stage) {
+                var str = fromNMTStage(stage, "t");
+                return str;
             }
         }
     });
+

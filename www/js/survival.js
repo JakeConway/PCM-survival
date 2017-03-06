@@ -585,3 +585,54 @@ function getViableDatasets(survivalArr) {
 function isInteger(value) {
     return /^\d+$/.test(value);
 }
+
+function repeatLetter(stage) {
+    if(stage == 0) {
+        return undefined;
+    }
+    //Faster to use loop.. see here: http://stackoverflow.com/questions/1877475/repeat-character-n-times
+    var str = "";
+    for (var i = 0; i < stage; i++) {
+        str = str + "I";
+    }
+    return str;
+}
+
+//If the value of the tumor stage column is represented with Roman numerals
+function stageHasIs(stage) {
+    if (stage == "NA" || stage == "") {
+        return undefined;
+    }
+    if (stage == " ") {
+        return
+    }
+    else {
+        if(stage.replace(/[^iv]/g, "").length > 0) {
+            return "IV";
+        }
+        var numOfI = stage.replace(/[^i]/g, "").length;
+        var str = repeatLetter(numOfI);
+        return str;
+    }
+}
+
+function fromNMTStage(stage, letter) {
+    if(stage == "" || stage == " ") {
+        return undefined;
+    }
+    else {
+        var num = stage.split(letter);
+        if(num.length < 2) {
+            return undefined;
+        }
+        else {
+         num = num[1].charAt(0);
+            if(isInteger(num)) {
+                var str = repeatLetter(num);
+            }
+            else {
+                return undefined;
+            }
+        }
+    }
+}
