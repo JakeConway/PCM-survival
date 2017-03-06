@@ -4,25 +4,40 @@
 
 var module = angular.module('starter.controllers');
 
-function onlyData(dataArr) {
+function extractData(dataArr, hasStages, columnNames) {
+    var stageColumnNames = JSON.parse(JSON.stringify(columnNames));
+
     for (var i = 0; i < dataArr.length; i++) {
         dataArr[i] = dataArr[i].data.toLowerCase();
+        if(hasStages.indexOf(i) != -1) {
+         dataArr[i] = dataArr[i].replace(columnNames[0], "stage");
+            columnNames.shift();
+        }
     }
-    return dataArr;
+    return [dataArr, stageColumnNames];
 }
 
-module.factory('survival', ['$http', '$q', function ($http, $q) {
+module.factory('survival', ['$http', '$q', 'studyStages', function ($http, $q, studyStages) {
     var survivalObj = {
         getSurvivalData: function (studyIDs) {
             var l = studyIDs.length;
             var survivalDataArr = [];
+            var hasStages = [];
+            var columnNames = [];
+            studyStages = studyStages.studyStages;
 
             for (var i = 0; i < l; i++) {
                 var setID = studyIDs[i] + '_all';
+                if(studyStages[studyIDs[i]] != undefined) {
+                    hasStages.push(i);
+                    columnNames.push(studyStages[studyIDs[i]].toLowerCase());
+                }
                 survivalDataArr.push($http.get('http://www.cbioportal.org/webservice.do?cmd=getClinicalData&case_set_id=' + setID));
             }
             $q.all(survivalDataArr).then(function (dataArr) {
-                survivalObj.survivalData = onlyData(dataArr);
+                var dataInfo = extractData(dataArr, hasStages, columnNames);
+                survivalObj.survivalData = dataInfo[0];
+                survivalObj.stageColumns = dataInfo[1];
                 location.href = '#/app/survival';
             });
         },
@@ -36,7 +51,6 @@ module.factory('survival', ['$http', '$q', function ($http, $q) {
 
 module.controller('survivalCtrl', ['$scope', 'survival', function ($scope, survival) {
     $scope.survivalData = survival.survivalData;
-
 }]);
 
 module.directive('survivalCurves', ['survival', function (survival) {
@@ -51,6 +65,7 @@ module.directive('survivalCurves', ['survival', function (survival) {
         var survivalData = scope.survivaldata;
         var selectedFeature = 'none';
         survivalData = getViableDatasets(survivalData);
+        console.log(survivalData);
         d3.select(el).selectAll('h1').remove();
         if (survivalData == null || survivalData.length == 0) {
             d3.select(el).append('h1')
@@ -463,8 +478,8 @@ function grabSurvivalFeatures(row, paramIndices, selectedParams) {
 function getParamIndices(header, selectedParams) {
     var paramsIndices = [];
     var l = selectedParams.length;
-    var adjustables = ['stage', 'race', 'sex'];
-    var replacements = ['stage', 'ethnicity', 'gender'];
+    var adjustables = ['race', 'sex'];
+    var replacements = ['ethnicity', 'gender'];
     for (var i = 0; i < l; i++) {
         var index = header.indexOf(selectedParams[i]);
         if(index == -1) {
@@ -492,9 +507,9 @@ function getSurvivalHeaders(survivalArr) {
     var acrossAll = [];
     for (var i = 0; i < l; i++) {
         //manually seek out these features and force them to be common... these are our main features of interest
-        var adjustables = ['stage', 'race', 'sex'];
+        var adjustables = ['race', 'sex'];
         //the common names we want to use
-        var replacements = ['stage', 'ethnicity', 'gender'];
+        var replacements = ['ethnicity', 'gender'];
 
         var headers = survivalArr[i].split('\n')[0];
         headers = headers.split('\t');
@@ -540,6 +555,14 @@ function adjustHeader(adjustables, replacements, header) {
         adjustables: adjustables,
         replacements: replacements
     };
+}
+
+//change the stage column of any study that has stage information
+function changeStageColumnName(dataArr, studyStages) {
+    var l = dataArr.length;
+    for(var i = 0; i < dataArr; i++) {
+
+    }
 }
 
 //from the selected datasets make sure that we have survival status and survival months

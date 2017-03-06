@@ -5,7 +5,7 @@
 var module = angular.module('starter.controllers');
 
 
-module.controller('welcomeCtrl', function ($scope, $http) {
+module.controller('welcomeCtrl', ['$scope', '$http', 'studyStages', function ($scope, $http, studyStages) {
     $scope.selectedType = null;
     $scope.tableData = null;
 
@@ -20,14 +20,20 @@ module.controller('welcomeCtrl', function ($scope, $http) {
         'Anal cancer': [],
         'Bladder cancer': ['blca'],
         'Breast cancer': ['acbc', 'brca'],
-        'Central nervous system (CNS) cancer': ['lgg', 'gbm', 'lgg', 'mpnst', 'mbl', 'pcnsl'],
+        'Central nervous system (CNS) cancer': [
+            'lgg', // No info on stage
+            'gbm', // No info on stage
+            'mpnst', // No info on stage
+            'mbl', // Debating on information provided (Metastasis stage)
+            'pcnsl' // No info on stage
+        ],
         'Cervical cancer': ['cesc'],
         'Colon cancer': ['coad'],
         'Esophageal cancer': ['esca', 'escc'],
-        'Ewing\'s sarcoma': ['es'],
+        'Ewing\'s sarcoma': ['es'], // No information on stage
         'Gastric cancer': ['egc', 'stad'],
         'Germ cell tumors': ['tgct'],
-        'Head and neck cancer': ['acyc', 'hnsc', 'npc', 'hnsc', 'hnc'],
+        'Head and neck cancer': ['acyc', 'hnsc', 'npc', 'hnc'],
         'Hepatobiliary cancer': ['chol', 'gbc', 'liad', 'lihc'],
         'Lung cancer, non-small cell': ['luad', 'lusc', 'nsclc'],
         'Lung cancer, small cell': ['sclc'],
@@ -237,6 +243,7 @@ module.controller('welcomeCtrl', function ($scope, $http) {
         "uterus endometrial adenocarcinoma papillary serous": "Uterine cancer"
     };
 
+    $scope.studyStages = studyStages.studyStages;
     $http.get('http://www.cbioportal.org/webservice.do?cmd=getCancerStudies').then(function (data) {
         data = data.data.toLowerCase();
         data = data.split('\n');
@@ -249,7 +256,7 @@ module.controller('welcomeCtrl', function ($scope, $http) {
             });
         }
     });
-});
+}]);
 
 
 module.directive('welcomeDirective', function ($http) {
@@ -325,12 +332,10 @@ module.directive('welcomeDirective', function ($http) {
                         console.log(error);
                     });
             setTimeout(function () {
-                console.log(studies);
                 if (studies.length > 0) {
                     scope.$apply(function () {
                         //get all studies associated with cancer type
                         studies = getRelatedStudies(studies, cbioCancerStudies);
-                        console.log(studies);
                         scope.$parent.selectedType = selectedType;
                         scope.$parent.tableData = studies;
                     });
@@ -350,7 +355,8 @@ module.directive('confirmationTable', ['survival', function (survival) {
         restrict: 'A',
         scope: {
             selectedtype: '=',
-            tabledata: '='
+            tabledata: '=',
+            studystages: '='
         },
         link: link
     };
@@ -358,6 +364,7 @@ module.directive('confirmationTable', ['survival', function (survival) {
     function link(scope, element) {
         var tableData = scope.tabledata;
         var selectedType = scope.selectedtype;
+        var studyStages = scope.studystages;
         var el = element[0];
 
         scope.$watch('selectedtype', function (updated) {
@@ -382,7 +389,7 @@ module.directive('confirmationTable', ['survival', function (survival) {
                 return;
             }
 
-            selectorTable('#table-div', ['Study ID', 'Name', 'Description'], tableData, Object.keys(tableData[0]));
+            selectorTable('#table-div', ['Study ID', 'Name', 'Description', 'Has Stage Info?'], tableData, Object.keys(tableData[0]), studyStages);
 
             d3.select('#table-div')
                 .append('button')
@@ -411,10 +418,13 @@ function getRelatedStudies(relatedArr, studiesArr) {
     return relatedStudies;
 }
 
-function selectorTable(element, headers, data, dataKeys) {
+function selectorTable(element, headers, data, dataKeys, studyStages) {
     var table = d3.select(element).append('table')
         .attr('id', 'selectorTable')
         .attr('class', 'table table-bordered');
+
+    data = studyHasStageInfo(data, studyStages);
+    dataKeys.push('hasStageInfo');
 
     var header = table.append('thead').append('tr');
 
@@ -435,9 +445,17 @@ function addDataToSelectorTable(tableBody, data, headers) {
     var hl = headers.length;
     for (var i = 0; i < dl; i++) {
         var row = tableBody.append('tr');
-        row.append('td')
-            .html('<input id="check' + i +
-                '" type="checkbox" value="1" checked onchange="(this.value > 0) ? this.value = 0 : this.value = 1">');
+        if(data[i].hasStageInfo == 'Yes') {
+            console.log("here");
+            row.append('td')
+                .html('<input id="check' + i +
+                    '" type="checkbox" value="1" checked onchange="(this.value > 0) ? this.value = 0 : this.value = 1">');
+        }
+        else {
+             row.append('td')
+                .html('<input id="check' + i +
+                    '" type="checkbox" value="0" onchange="(this.value > 0) ? this.value = 0 : this.value = 1">');
+        }
 
         for (var j = 0; j < hl; j++) {
             row.append('td')
@@ -445,6 +463,19 @@ function addDataToSelectorTable(tableBody, data, headers) {
                 .html(data[i][headers[j]]);
         }
     }
+}
+
+function studyHasStageInfo(data, studyStages) {
+    var l = data.length;
+    for(var i = 0; i < l; i++) {
+        if(studyStages[data[i].id] != undefined) {
+            data[i].hasStageInfo = 'Yes'
+        }
+        else {
+            data[i].hasStageInfo = 'No';
+        }
+    }
+    return data;
 }
 
 function changeCheckBox(checkbox) {

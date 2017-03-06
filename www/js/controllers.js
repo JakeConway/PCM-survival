@@ -53,4 +53,62 @@ angular.module('starter.controllers', [])
     })
 
     .controller('PlaylistCtrl', function ($scope, $stateParams) {
+
+    })
+
+    .factory('studyStages', function () {
+        return {
+            studyStages: {
+                blca_mskcc_solit_2015: 'PT_STAGE',
+                blca_plasmacytoid_mskcc_2016: 'TUMOR_PATH_STAGE',
+                blca_tcga_pub: 'TUMORSTAGE',
+                blca_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                acbc_mskcc_2015: 'TUMOR_STAGE',
+                brca_metabric: 'TUMOR_STAGE',
+                brca_tcga_pub_2015: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                brca_tcga_pub: 'AJCC STAGE',
+                brca_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                cesc_tcga: 'CLINICAL_STAGE',
+                coadread_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                esca_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                escc_icgc: 'TUMOR_STAGE',
+                egc_tmucih_2015: 'STAGE',
+                stad_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                acyc_mskcc_2013: 'TUMOR_STAGE',
+                hnsc_mdanderson_2013: 'TUMOR_STAGE',
+                hnsc_tcga: 'CLINICAL_STAGE',
+                chol_nus_2012: 'STAGE',
+                chol_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                lihc_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                luad_tcga_pub: 'TUMOR_STAGE_2009',
+                luad_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                lusc_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                nsclc_tcga_broad_2016: 'STAGE',
+                sclc_ucologne_2015: 'UICC_TUMOR_STAGE',
+                skcm_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                uvm_tcga: 'AJCC_CLINICAL_TUMOR_STAGE',
+                plmeso_nyu_2015: 'STAGE',
+                nbl_amc_2012: 'INSS_STAGE',
+                ov_tcga_pub: 'TUMOR_STAGE_2009',
+                ov_tcga: 'CLINICAL_STAGE',
+                paad_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                prad_cpcg_2017: 'PATH_N_STAGE',
+                prad_tcga: 'PATH_N_STAGE',
+                prad_mskcc_2014: 'CLIN_T_STAGE',
+                kich_tcga_pub: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                kich_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                kirc_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                kirp_tcga: 'AJCC_CLINICAL_TUMOR_STAGE',
+                urcc_mskcc_2016: 'PATH_M_STAGE',
+                thca_tcga_pub: 'PATH_N_STAGE',
+                thca_tcga: 'AJCC_PATHOLOGIC_TUMOR_STAGE',
+                thyroid_mskcc_2016: 'PATH_N_STAGE',
+                ucec_tcga_pub: 'TUMOR_STAGE_2009',
+                ucec_tcga: 'CLINICAL_STAGE',
+                mbl_icgc: 'CLIN_M_STAGE',
+                stad_tcga_pub: 'TNM_STAGE',
+                tgct_tcga: 'AJCC_CLINICAL_TUMOR_STAGE',
+                lihc_amc_prv: 'GRADE'
+            }
+        }
     });
