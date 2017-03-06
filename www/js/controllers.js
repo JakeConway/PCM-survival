@@ -143,6 +143,18 @@ angular.module('starter.controllers', [])
             CLIN_T_STAGE: function(stage) {
                 var str = fromNMTStage(stage, "t");
                 return str;
+            },
+            TUMOR_STAGE: function(stage) {
+                if(stage == "" || stage == " ") {
+                    return undefined;
+                }
+                if(stage == undefined) {
+                    return undefined;
+                }
+                else {
+                    var str = repeatLetter(stage);
+                    return str;
+                }
             }
         }
     });

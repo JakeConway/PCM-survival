@@ -446,7 +446,6 @@ function addDataToSelectorTable(tableBody, data, headers) {
     for (var i = 0; i < dl; i++) {
         var row = tableBody.append('tr');
         if(data[i].hasStageInfo == 'Yes') {
-            console.log("here");
             row.append('td')
                 .html('<input id="check' + i +
                     '" type="checkbox" value="1" checked onchange="(this.value > 0) ? this.value = 0 : this.value = 1">');

@@ -6,14 +6,24 @@ var module = angular.module('starter.controllers');
 
 function extractData(dataArr, hasStages, columnNames) {
     var stageColumnNames = JSON.parse(JSON.stringify(columnNames));
+    console.log(stageColumnNames, "--", columnNames);
 
     for (var i = 0; i < dataArr.length; i++) {
         dataArr[i] = dataArr[i].data.toLowerCase();
-        if(hasStages.indexOf(i) != -1) {
-         dataArr[i] = dataArr[i].replace(columnNames[0], "stage");
-            columnNames.shift();
+        if(dataArr[i].includes("os_months") == true && dataArr[i].includes("os_status") == true) {
+            if (hasStages.indexOf(i) != -1) {
+                dataArr[i] = dataArr[i].replace(columnNames[0], "stage");
+                columnNames.shift();
+            }
+        }
+        else {
+            if (hasStages.indexOf(i) != -1) {
+                stageColumnNames.splice(i, 1);
+                columnNames.shift();
+            }
         }
     }
+    console.log(stageColumnNames);
     return [dataArr, stageColumnNames];
 }
 
@@ -51,21 +61,23 @@ module.factory('survival', ['$http', '$q', 'studyStages', function ($http, $q, s
 
 module.controller('survivalCtrl', ['$scope', 'survival', function ($scope, survival) {
     $scope.survivalData = survival.survivalData;
+    $scope.stageColumns = survival.stageColumns;
 }]);
 
-module.directive('survivalCurves', ['survival', function (survival) {
+module.directive('survivalCurves', ['survival', 'studyStages', function (survival, studyStages) {
     return {
         restrict: 'A',
         scope: {
-            survivaldata: '='
+            survivaldata: '=',
+            stagecolumns: '='
         },
         link: link
     };
     function link(scope, element) {
         var survivalData = scope.survivaldata;
+        var stageColumns = scope.stagecolumns;
         var selectedFeature = 'none';
         survivalData = getViableDatasets(survivalData);
-        console.log(survivalData);
         d3.select(el).selectAll('h1').remove();
         if (survivalData == null || survivalData.length == 0) {
             d3.select(el).append('h1')
@@ -81,7 +93,7 @@ module.directive('survivalCurves', ['survival', function (survival) {
             });
 
         var usableFeatures = getSurvivalHeaders(survivalData);
-        survivalData = parseSurvivalData(survivalData, usableFeatures);
+        survivalData = parseSurvivalData(survivalData, usableFeatures, studyStages, stageColumns);
         usableFeatures = removeOS_Months(usableFeatures);
 
         var optionsDiv = d3.select(el).append('div')
@@ -273,7 +285,7 @@ function groupByFeature(kaplanMeierData, selectedFeature) {
     }
     else {
         return d3.nest().key(function (d) {
-            if (d[selectedFeature] == undefined) {
+            if (d[selectedFeature] == undefined && selectedFeature) {
                 return 'unknown';
             }
             else {
@@ -447,20 +459,31 @@ function getObjectIndex(array, value) {
 }
 
 //parse selected survival data
-function parseSurvivalData(survivalArr, selectedParams) {
+function parseSurvivalData(survivalArr, selectedParams, studyStages, stageColumns) {
     var l = survivalArr.length;
+    console.log(stageColumns.length, "---", l);
     var survivalData = [];
     //loop through all of the datasets we're pulling survival data from
     for (var i = 0; i < l; i++) {
+        var currentStudyData = [];
         var data = survivalArr[i].split('\n');
         var header = data[0];
         //get the parameters we've selected (Required: survival months and survival status)
         var paramIndices = getParamIndices(header.split('\t'), selectedParams);
         //loop through the rows of the current dataset and extract data of selected parameters (features)
         var dl = data.length;
-        for (var j = 1; j < dl; j++) {
-            survivalData.push(grabSurvivalFeatures(data[j].split('\t'), paramIndices, selectedParams));
+        if(selectedParams.indexOf("stage") != -1) {
+            for (var j = 1; j < dl; j++) {
+                currentStudyData.push(grabSurvivalFeatures(data[j].split('\t'), paramIndices, selectedParams));
+                currentStudyData[j-1].stage = studyStages[stageColumns[i].toUpperCase()](currentStudyData[j-1].stage);
+            }
         }
+        else {
+            for (var j = 1; j < dl; j++) {
+                currentStudyData.push(grabSurvivalFeatures(data[j].split('\t'), paramIndices, selectedParams));
+            }
+        }
+        survivalData = survivalData.concat(currentStudyData);
     }
     return survivalData;
 }
@@ -491,8 +514,6 @@ function getParamIndices(header, selectedParams) {
         }
         paramsIndices.push(index);
     }
-    //console.log(selectedParams);
-    //console.log(paramsIndices);
     return paramsIndices;
 }
 
@@ -590,6 +611,9 @@ function repeatLetter(stage) {
     if(stage == 0) {
         return undefined;
     }
+    if(stage == 4) {
+        return "IV";
+    }
     //Faster to use loop.. see here: http://stackoverflow.com/questions/1877475/repeat-character-n-times
     var str = "";
     for (var i = 0; i < stage; i++) {
@@ -603,11 +627,11 @@ function stageHasIs(stage) {
     if (stage == "NA" || stage == "") {
         return undefined;
     }
-    if (stage == " ") {
-        return
+    if (stage == " " || stage == undefined) {
+        return undefined;
     }
     else {
-        if(stage.replace(/[^iv]/g, "").length > 0) {
+        if(stage.includes("iv")) {
             return "IV";
         }
         var numOfI = stage.replace(/[^i]/g, "").length;
@@ -620,6 +644,9 @@ function fromNMTStage(stage, letter) {
     if(stage == "" || stage == " ") {
         return undefined;
     }
+    if(stage == undefined) {
+        return undefined;
+    }
     else {
         var num = stage.split(letter);
         if(num.length < 2) {
@@ -629,6 +656,7 @@ function fromNMTStage(stage, letter) {
          num = num[1].charAt(0);
             if(isInteger(num)) {
                 var str = repeatLetter(num);
+                return str;
             }
             else {
                 return undefined;
