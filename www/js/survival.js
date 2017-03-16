@@ -55,7 +55,7 @@ module.factory('survival', ['$http', '$q', 'studyStages', function ($http, $q, s
             return survivalObj.survivalData;
         },
         transferKaplanMeierData: function($scope, kaplanMeierData) {
-            $scope.kaplanMeierData.data = kaplanMeierData;
+            $scope.kaplanMeierData.binnedData = kaplanMeierData;
         },
         survivalData: null
     };
@@ -66,7 +66,7 @@ module.controller('survivalCtrl', ['$scope', 'survival', function ($scope, survi
     $scope.survivalData = survival.survivalData;
     $scope.stageColumns = survival.stageColumns;
     $scope.kaplanMeierData = {
-        data: []
+        binnedData: []
     };
 }]);
 
@@ -82,7 +82,7 @@ module.directive('survivalTable', function() {
         var el = element[0];
         var width = el.clientWidth;
         var height = el.clientHeight;
-        var kaplanMeierData = scope.kaplanmeierdata.data;
+        var kaplanMeierData = scope.kaplanmeierdata;
 
         var svgHeight = $('#survival-curve-svg').height();
         var top = $('#survival-curve-svg').offset().top;
@@ -96,11 +96,11 @@ module.directive('survivalTable', function() {
         scope.$watch("kaplanmeierdata", function(updatedData) {
             // some weird hacky thing to make the directive pick up the change.. note how I had to put it in a dictionary
             // initially to detect any changes when grouping by a feature
-            if(updatedData.data == undefined) {
+            if(updatedData.binnedData == undefined) {
                 kaplanMeierData = updatedData;
             }
             else {
-                kaplanMeierData = updatedData.data;
+                kaplanMeierData = updatedData.binnedData;
             }
             if(kaplanMeierData[0].length > 10) {
                 return;
@@ -241,10 +241,10 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
             selectedFeature = this.value;
             svg.selectAll('*').remove();
             kaplanMeierData = groupByFeature(survivalData, selectedFeature);
-            kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins);
-            scope.$apply(function() {
-               scope.$parent.$parent.kaplanMeierData = kaplanMeierData;
-            });
+            kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins, scope, survival);
+            //scope.$apply(function() {
+            //   scope.$parent.$parent.kaplanMeierData = kaplanMeierData;
+            //});
             connectorData = generateConnectorLines(kaplanMeierData);
             plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, connectorData, xScale, yScale, xAxis, yAxis);
         });
@@ -262,8 +262,7 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
         survivalData = removeUnplottableData(survivalData);
         var kaplanMeierData = groupByFeature(survivalData, selectedFeature);
         var censorData = gatherCensoringData(survivalData, maxDeceasedSurvival);
-        kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins);
-        survival.transferKaplanMeierData(scope.$parent, kaplanMeierData);
+        kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins, scope, survival);
         var connectorData = generateConnectorLines(kaplanMeierData);
 
 
@@ -285,7 +284,7 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
                 nBins = this.value;
                 svg.selectAll('*').remove();
                 kaplanMeierData = groupByFeature(survivalData, selectedFeature);
-                kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins);
+                kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins, scope, survival);
                 connectorData = generateConnectorLines(kaplanMeierData);
                 plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, connectorData, xScale, yScale, xAxis, yAxis);
             });
@@ -469,11 +468,19 @@ function generateConnectorLines(kaplanMeierData) {
 }
 
 //array to mimic Kaplan-Meier table
-function convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nbins) {
+function convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nbins, scope, survival) {
     var divider = calculateBinDivider(maxSurvival, nbins);
     var ngroups = kaplanMeierData.length;
+    var tableData = [];
     for(var group = 0; group < ngroups; group++) {
-        var table = [];
+        var nPatients = kaplanMeierData[group].values.length;
+        var groupName = kaplanMeierData[group].key;
+        var deceasedPatients = d3.nest()
+            .key(function(d) {
+                return d.os_status;
+            }).entries(kaplanMeierData[group].values);
+        deceasedPatients = deceasedPatients[getObjectIndex(deceasedPatients, 'deceased')].values;
+        console.log(deceasedPatients.length);
         // going to be used to see what we need to fill in
         var binsOccupied = [];
         var bySurvivalMonths = d3.nest()
@@ -483,37 +490,61 @@ function convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nbins) {
                     return bin - 1;
                 }
                 return bin;
-            })
-            .entries(kaplanMeierData[group].values);
+            }).entries(deceasedPatients);
 
         bySurvivalMonths = sortByKey(bySurvivalMonths, 'key');
         var l = bySurvivalMonths.length;
+
+        deceasedPatients.sort(function(a, b) {
+           return parseFloat(a.os_months) - parseFloat(b.os_months);
+        });
+        deceasedPatients = d3.nest()
+            .key(function(d) {
+                return Math.round(d.os_months);
+            }).entries(deceasedPatients);
+
+        var table = [];
         //initialize the first bin to keep rounding of month intervals consistent
-        var total = 0;
         table[0] = {};
         table[0].bin = parseInt(bySurvivalMonths[0].key);
         table[0].count = bySurvivalMonths[0].values.length;
         table[0].minMonths = Math.round(table[0].bin * divider, 1);
         table[0].maxMonths = Math.round(table[0].minMonths + divider, 1);
-        total = total + table[0].count;
+        table[0].group = groupName;
+        table[0].total = nPatients;
         binsOccupied.push(bySurvivalMonths[0].key);
         for (var i = 1; i < l; i++) {
             table.push({
                 bin: parseInt(bySurvivalMonths[i].key),
                 count: bySurvivalMonths[i].values.length,
                 minMonths: table[i - 1].maxMonths,
-                maxMonths: Math.round(table[i - 1].maxMonths + divider, 1)
+                maxMonths: Math.round(table[i - 1].maxMonths + divider, 1),
+                group: groupName,
+                total: nPatients
             });
-            total = total + table[i].count;
             binsOccupied.push(bySurvivalMonths[i].key);
         }
         if(table.length != nbins) {
             table = fillConnectorGaps(table, binsOccupied, divider, nbins);
         }
-        table[table.length-1].maxMonths = maxSurvival;
-        var groupName = kaplanMeierData[group].key;
-        kaplanMeierData[group] = calculateSurvivalProbabilities(table, total, groupName);
+        var curveData = [];
+        curveData[0] = {
+          count: nPatients,
+            minMonths: 0
+        };
+        var nCurveChanges = deceasedPatients.length;
+        for(var i = 1; i < nCurveChanges+1; i++) {
+            curveData[i] = {};
+            curveData[i-1].maxMonths = deceasedPatients[i-1].key;
+            curveData[i].minMonths = curveData[i-1].maxMonths;
+            curveData[i].count = curveData[i-1].count = deceasedPatients[i-1].values.length;
+        }
+        curveData[curveData.length-1].maxMonths = maxSurvival;
+        kaplanMeierData[group] = calculateSurvivalProbabilities(curveData, nPatients, groupName);
+        tableData[group] = table;
     }
+    console.log(tableData);
+    survival.transferKaplanMeierData(scope.$parent, tableData);
     return kaplanMeierData;
 }
 
@@ -677,7 +708,7 @@ function findMaxSurvival(survivalData) {
 function getObjectIndex(array, value) {
     var l = array.length;
     for (var i = 0; i < l; i++) {
-        if (array[i].key = value) {
+        if (array[i].key == value) {
             return i;
         }
     }
