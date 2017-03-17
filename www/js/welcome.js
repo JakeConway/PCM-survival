@@ -305,7 +305,7 @@ module.directive('welcomeDirective', function ($http) {
 
         cancerSelector.on('change', function () {
             selectedPatient = this.options[this.selectedIndex].text;
-            $http.get("http://localhost:8080/FHIR-server_dstu3/baseDstu3/Condition/" + selectedPatient + "-cond-1")
+            $http.get("http://fhirtest.uhn.ca/baseDstu3/Condition/" + selectedPatient + "-cond-1")
                 .then(function (success) {
                         var FMdiagnosis = success.data.code.text;
                         if (cancerDict[FMdiagnosis.toLowerCase()] != undefined) {

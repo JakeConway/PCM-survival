@@ -217,17 +217,23 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
             svg.selectAll('*').remove();
             kaplanMeierData = groupByFeature(survivalData, selectedFeature);
             kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins, scope, survival);
+            plottableCensorData = groupByFeature(censorData, selectedFeature);
+            plottableCensorData = getPlotCoordinatesForCensorData(kaplanMeierData, plottableCensorData);
             scope.$apply(function() {
                scope.$parent.$parent.kaplanMeierData = kaplanMeierData;
             });
             connectorData = generateConnectorLines(kaplanMeierData);
-            plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, connectorData, xScale, yScale, xAxis, yAxis);
+            plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, plottableCensorData, connectorData, xScale, yScale, xAxis, yAxis);
         });
 
         var svg = survivalCurveDiv.append('svg')
             .attr('id', 'survival-curve-svg')
             .attr('height', '100%')
             .attr('width', '100%');
+
+        d3.select("#legend-wrapper").style("padding-top", ($("#survival-curve-svg").offset().top + ($('#survival-curve-svg').height() * 0.1))+ 'px');
+
+        //$('#legend-wrapper').css('top', $("#survival-curve-svg").position().top);
 
         var svgHeight = $('#survival-curve-svg').height();
         var svgWidth = $('#survival-curve-svg').width();
@@ -237,7 +243,9 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
         survivalData = removeUnplottableData(survivalData);
         var kaplanMeierData = groupByFeature(survivalData, selectedFeature);
         var censorData = gatherCensoringData(survivalData, maxDeceasedSurvival);
+        var plottableCensorData = groupByFeature(censorData, selectedFeature);
         kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins, scope, survival);
+        plottableCensorData = getPlotCoordinatesForCensorData(kaplanMeierData, plottableCensorData);
         var connectorData = generateConnectorLines(kaplanMeierData);
 
 
@@ -252,55 +260,60 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
         var xAxis = d3.axisBottom(xScale);
         var yAxis = d3.axisLeft(yScale);
 
-        plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, connectorData, xScale, yScale, xAxis, yAxis);
+        plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, plottableCensorData, connectorData, xScale, yScale, xAxis, yAxis);
     }
 }]);
 
+
+
+function getPlotCoordinatesForCensorData(kaplanMeierData, censorData) {
+    var cl = censorData.length;
+    var kl = kaplanMeierData.length;
+    for(var i = 0; i < cl; i++) {
+        var group = censorData[i].key;
+        for(var j = 0; j < kl; j++) {
+            if(kaplanMeierData[j][0].group == group) {
+                censorData[i] = getProbabilityCoordinates(kaplanMeierData[j], censorData[i].values, group);
+            }
+        }
+    }
+    return censorData;
+}
+
+function getProbabilityCoordinates(kaplanMeierData, censorData, group) {
+    var cl = censorData.length;
+    var kl = kaplanMeierData.length;
+    var min, max;
+    for(var i = 0; i < cl; i++) {
+        var currentPatientMonths = parseFloat(censorData[i].os_months);
+        for(var j = 0; j < kl; j++) {
+            min = parseInt(kaplanMeierData[j].minMonths);
+            max = parseInt(kaplanMeierData[j].maxMonths);
+            if(currentPatientMonths >= min && currentPatientMonths <= max) {
+                censorData[i].probability = kaplanMeierData[j].probability;
+                censorData[i].group = group;
+                break;
+            }
+        }
+    }
+    return censorData;
+}
+
+function assignGroupColors(kaplanMeierData, ngroups, colors) {
+    var colorDict = {};
+    for(var i = 0; i < ngroups; i++) {
+        colorDict[kaplanMeierData[i][0].group] = colors[i];
+    }
+    return colorDict;
+}
+
 // plot the survival curse
-function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, connectorData, xScale, yScale, xAxis, yAxis) {
+function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorData, connectorData, xScale, yScale, xAxis, yAxis) {
     var ngroups = kaplanMeierData.length;
     var colors = ['red', 'blue', 'green', 'orange', '#808000', 'purple', '#ff00ff', 'brown', '#008080', '#800000'];
+    var colorDict = assignGroupColors(kaplanMeierData, ngroups, colors);
 
-    svg.append("rect")
-        .attr("x", function() {
-            var svgWidth = $('#survival-curve-svg').width();
-            return svgWidth * 0.65;
-        })
-        .attr("y", function () {
-            return yScale(0.99);
-        })
-        .attr("width", function() {
-            var svgWidth = $('#survival-curve-svg').width();
-            return (svgWidth*0.95) - (svgWidth*0.65);
-        })
-        .attr("height", function() {
-            return yScale(0.625) - yScale(0.99);
-        })
-        .style("stroke-width", 2)
-        .style("stroke", "black")
-        .style("fill", "#E7E7E7")
-        .style("opacity", 0.8);
-
-    // placing text in legend between 0.65 and 0.95 of y-axis
-    var divider = 0.3/ngroups;
-    for(var i = 0; i < ngroups; i++) {
-        svg.append("text")
-            .attr("x", function() {
-                 var svgWidth = $('#survival-curve-svg').width();
-                return svgWidth * 0.66;
-            })
-            .attr("y", function() {
-                var position = 0.95 - (i * divider);
-                return yScale(position);
-            })
-            .text(function() {
-               return kaplanMeierData[i][0].group;
-            })
-            .style("font-family", "Times New Roman")
-            .style("fill", colors[i]);
-    }
-
-    for(var group = 0; group < ngroups; group++) {
+    for (var group = 0; group < ngroups; group++) {
         var groupData = kaplanMeierData[group];
         var curve = svg.selectAll('bins')
             .data(groupData)
@@ -340,29 +353,96 @@ function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, connector
             .style('stroke', colors[group]);
     }
 
-    var xAxisText = svg.append('text')
-        .attr('x', svgWidth * 0.45)
-        .attr('y', svgHeight * 0.98)
-        .html('Survival Months');
+    var nCensorGroups = censorData.length;
+    for (var cGroup = 0; cGroup < nCensorGroups; cGroup++) {
+        var groupCensorTicks = censorData[cGroup];
+        if (groupCensorTicks.length > 0) {
+            var gcensor = groupCensorTicks[0].group;
+            var censorTicks = svg.selectAll('censorTicks')
+                .data(groupCensorTicks)
+                .enter()
+                .append('line')
+                .attr('x1', function (d) {
+                    return xScale(parseFloat(d.os_months));
+                })
+                .attr('y1', function (d) {
+                    var prob = d.probability + 0.005;
+                    return yScale(prob);
+                })
+                .attr('x2', function (d) {
+                    return xScale(parseFloat(d.os_months));
+                })
+                .attr('y2', function (d) {
+                    var prob = d.probability - 0.005;
+                    return yScale(prob);
+                })
+                .style('stroke', colorDict[gcensor]);
+        }
+    }
 
-    var yAxisText = svg.append('text')
-        .attr('x', svgWidth * 0.01)
-        .attr('y', svgHeight * 0.5)
-        .attr('text-anchor', 'middle')
-        .attr('transform', function() {
-            return 'rotate(270,'+ svgWidth*0.025 + ',' + svgHeight*0.5 + ')';
+    // legend
+    svg.append("rect")
+        .attr("x", function () {
+            var svgWidth = $('#survival-curve-svg').width();
+            return svgWidth * 0.65;
         })
-        .html('Probability');
+        .attr("y", function () {
+            return yScale(1);
+        })
+        .attr("width", function () {
+            var svgWidth = $('#survival-curve-svg').width();
+            return (svgWidth * 0.95) - (svgWidth * 0.65);
+        })
+        .attr("height", function () {
+            return yScale(0.625) - yScale(1);
+        })
+        .style("stroke-width", 2)
+        .style("stroke", "black")
+        .style("fill", "#E7E7E7")
+        .style("opacity", 1);
+
+    // placing text in legend between 0.65 and 0.95 of y-axis
+    var divider = 0.3 / ngroups;
+    for (var i = 0; i < ngroups; i++) {
+        svg.append("text")
+            .attr("x", function () {
+                var svgWidth = $('#survival-curve-svg').width();
+                return svgWidth * 0.66;
+            })
+            .attr("y", function () {
+                var position = 0.97 - (i * divider);
+                return yScale(position);
+            })
+            .text(function () {
+                return kaplanMeierData[i][0].group;
+            })
+            .style("font-family", "Times New Roman")
+            .style("fill", colors[i]);
+    }
+
+    //var xAxisText = svg.append('text')
+    //    .attr('x', svgWidth * 0.45)
+    //    .attr('y', svgHeight * 0.98)
+    //    .html('Survival Months');
+    //
+    //var yAxisText = svg.append('text')
+    //    .attr('x', svgWidth * 0.01)
+    //    .attr('y', svgHeight * 0.5)
+    //    .attr('text-anchor', 'middle')
+    //    .attr('transform', function() {
+    //        return 'rotate(270,'+ svgWidth*0.025 + ',' + svgHeight*0.5 + ')';
+    //    })
+    //    .html('Probability');
 
 
     // havent made class axis yet, which is why it's commented out
     svg.append('svg:g')
-    //.attr('class', 'axis')
+        //.attr('class', 'axis')
         .attr('transform', 'translate(0,' + (svgHeight - svgHeight * 0.1) + ')')
         .call(xAxis);
 
     svg.append('svg:g')
-    //.attr('class', 'axis')
+        //.attr('class', 'axis')
         .attr('transform', 'translate(' + svgWidth * 0.05 + ', 0)')
         .call(yAxis);
 }
