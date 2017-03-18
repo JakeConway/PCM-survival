@@ -231,7 +231,7 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
             .attr('height', '100%')
             .attr('width', '100%');
 
-        d3.select("#legend-wrapper").style("padding-top", ($("#survival-curve-svg").offset().top + ($('#survival-curve-svg').height() * 0.1))+ 'px');
+        //d3.select("#legend-wrapper").style("padding-top", ($("#survival-curve-svg").offset().top + ($('#survival-curve-svg').height() * 0.10))+ 'px');
 
         //$('#legend-wrapper').css('top', $("#survival-curve-svg").position().top);
 
@@ -384,14 +384,14 @@ function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorDat
     svg.append("rect")
         .attr("x", function () {
             var svgWidth = $('#survival-curve-svg').width();
-            return svgWidth * 0.65;
+            return svgWidth * 0.75;
         })
         .attr("y", function () {
             return yScale(1);
         })
         .attr("width", function () {
             var svgWidth = $('#survival-curve-svg').width();
-            return (svgWidth * 0.95) - (svgWidth * 0.65);
+            return (svgWidth * 0.95) - (svgWidth * 0.71);
         })
         .attr("height", function () {
             return yScale(0.625) - yScale(1);
@@ -407,7 +407,7 @@ function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorDat
         svg.append("text")
             .attr("x", function () {
                 var svgWidth = $('#survival-curve-svg').width();
-                return svgWidth * 0.66;
+                return svgWidth * 0.76;
             })
             .attr("y", function () {
                 var position = 0.97 - (i * divider);
