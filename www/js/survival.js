@@ -315,23 +315,29 @@ function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorDat
 
     for (var group = 0; group < ngroups; group++) {
         var groupData = kaplanMeierData[group];
-        var curve = svg.selectAll('bins')
-            .data(groupData)
-            .enter()
-            .append('line')
-            .attr('x1', function (d) {
-                return xScale(d.minMonths);
-            })
-            .attr('y1', function (d) {
-                return yScale(d.probability);
-            })
-            .attr('x2', function (d) {
-                return xScale(d.maxMonths);
-            })
-            .attr('y2', function (d) {
-                return yScale(d.probability);
-            })
-            .style('stroke', colors[group]);
+        var l = groupData.length;
+        var prev = groupData[0].minMonths;
+        for(var j = 0; j < l; j++) {
+            if(groupData[j].minMonths == 0 || groupData[j].maxMonths == 0) {
+                if(j != 0) {
+                    continue;
+                }
+            }
+            svg.append('line')
+                .attr('x1', function () {
+                    return xScale(groupData[j].minMonths);
+                })
+                .attr('y1', function () {
+                    return yScale(groupData[j].probability);
+                })
+                .attr('x2', function () {
+                    return xScale(groupData[j].maxMonths);
+                })
+                .attr('y2', function () {
+                    return yScale(groupData[j].probability);
+                })
+                .style('stroke', colors[group]);
+        }
 
         var groupConnectors = connectorData[group];
         var connectors = svg.selectAll('connectors')
