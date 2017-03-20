@@ -29,7 +29,7 @@ function extractData(dataArr, hasStages, columnNames) {
 
 module.factory('survival', ['$http', '$q', 'studyStages', function ($http, $q, studyStages) {
     var survivalObj = {
-        getSurvivalData: function (studyIDs) {
+        getSurvivalData: function (studyIDs, selectedType) {
             var l = studyIDs.length;
             var survivalDataArr = [];
             var hasStages = [];
@@ -48,6 +48,7 @@ module.factory('survival', ['$http', '$q', 'studyStages', function ($http, $q, s
                 var dataInfo = extractData(dataArr, hasStages, columnNames);
                 survivalObj.survivalData = dataInfo[0];
                 survivalObj.stageColumns = dataInfo[1];
+                survivalObj.selectedType = selectedType;
                 location.href = '#/app/survival';
             });
         },
@@ -65,6 +66,7 @@ module.factory('survival', ['$http', '$q', 'studyStages', function ($http, $q, s
 module.controller('survivalCtrl', ['$scope', 'survival', function ($scope, survival) {
     $scope.survivalData = survival.survivalData;
     $scope.stageColumns = survival.stageColumns;
+    $scope.selectedType = survival.selectedType;
     $scope.kaplanMeierData = [];
 }]);
 
@@ -145,13 +147,15 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
         restrict: 'A',
         scope: {
             survivaldata: '=',
-            stagecolumns: '='
+            stagecolumns: '=',
+            selectedtype: '='
         },
         link: link
     };
     function link(scope, element) {
         var survivalData = scope.survivaldata;
         var stageColumns = scope.stagecolumns;
+        var selectedType = scope.selectedtype;
         var selectedFeature = 'none';
         survivalData = getViableDatasets(survivalData);
         d3.select(el).selectAll('h1').remove();
@@ -216,6 +220,9 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
             selectedFeature = this.value;
             svg.selectAll('*').remove();
             kaplanMeierData = groupByFeature(survivalData, selectedFeature);
+            if(selectedFeature == 'stage') {
+                kaplanMeierData = sortStage(kaplanMeierData);
+            }
             kaplanMeierData = convertToKaplanMeierArray(kaplanMeierData, maxSurvival, nBins, scope, survival);
             plottableCensorData = groupByFeature(censorData, selectedFeature);
             plottableCensorData = getPlotCoordinatesForCensorData(kaplanMeierData, plottableCensorData);
@@ -223,7 +230,7 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
                scope.$parent.$parent.kaplanMeierData = kaplanMeierData;
             });
             connectorData = generateConnectorLines(kaplanMeierData);
-            plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, plottableCensorData, connectorData, xScale, yScale, xAxis, yAxis);
+            plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, plottableCensorData, connectorData, selectedType, xScale, yScale, xAxis, yAxis);
         });
 
         var svg = survivalCurveDiv.append('svg')
@@ -260,11 +267,28 @@ module.directive('survivalCurves', ['survival', 'studyStages', function (surviva
         var xAxis = d3.axisBottom(xScale);
         var yAxis = d3.axisLeft(yScale);
 
-        plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, plottableCensorData, connectorData, xScale, yScale, xAxis, yAxis);
+        d3.select("#table-row").style("padding-top", "1%");
+
+        plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, plottableCensorData, connectorData, selectedType, xScale, yScale, xAxis, yAxis);
     }
 }]);
 
-
+function sortStage(byFeatureData) {
+    var levels = ['I', 'II', 'III', 'IV', 'unknown'];
+    var l = levels.length;
+    var dl = byFeatureData.length;
+    var orderedData = [];
+    for(var i = 0; i < l; i++) {
+        for(var j = 0; j < dl; j++) {
+            if(byFeatureData[j].key == levels[i]) {
+                //byFeatureData[j].key = "Stage " + byFeatureData[j].key;
+                orderedData.push(byFeatureData[j]);
+                break;
+            }
+        }
+    }
+    return orderedData;
+}
 
 function getPlotCoordinatesForCensorData(kaplanMeierData, censorData) {
     var cl = censorData.length;
@@ -308,9 +332,9 @@ function assignGroupColors(kaplanMeierData, ngroups, colors) {
 }
 
 // plot the survival curse
-function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorData, connectorData, xScale, yScale, xAxis, yAxis) {
+function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorData, connectorData, selectedType, xScale, yScale, xAxis, yAxis) {
     var ngroups = kaplanMeierData.length;
-    var colors = ['red', 'blue', 'green', 'orange', '#808000', 'purple', '#ff00ff', 'brown', '#008080', '#800000'];
+    var colors = ['red', 'blue', 'green', '	#efcc00', 'brown', 'orange', '#808000', 'purple', '#ff00ff', '#008080', '#800000'];
     var colorDict = assignGroupColors(kaplanMeierData, ngroups, colors);
 
     for (var group = 0; group < ngroups; group++) {
@@ -336,7 +360,8 @@ function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorDat
                 .attr('y2', function () {
                     return yScale(groupData[j].probability);
                 })
-                .style('stroke', colors[group]);
+                .style('stroke', colors[group])
+                .style('stroke-width', 2);
         }
 
         var groupConnectors = connectorData[group];
@@ -426,19 +451,27 @@ function plotSurvivalCurves(svg, svgHeight, svgWidth, kaplanMeierData, censorDat
             .style("fill", colors[i]);
     }
 
-    //var xAxisText = svg.append('text')
-    //    .attr('x', svgWidth * 0.45)
-    //    .attr('y', svgHeight * 0.98)
-    //    .html('Survival Months');
-    //
-    //var yAxisText = svg.append('text')
-    //    .attr('x', svgWidth * 0.01)
-    //    .attr('y', svgHeight * 0.5)
-    //    .attr('text-anchor', 'middle')
-    //    .attr('transform', function() {
-    //        return 'rotate(270,'+ svgWidth*0.025 + ',' + svgHeight*0.5 + ')';
-    //    })
-    //    .html('Probability');
+    var title = svg.append('text')
+        .attr('x', svgWidth * 0.45)
+        .attr('y', svgHeight * 0.07)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', 30)
+        .html(toTitleCase(selectedType + ' Survival'));
+
+    var xAxisText = svg.append('text')
+        .attr('x', svgWidth * 0.5)
+        .attr('y', svgHeight * 0.945)
+        .attr('text-anchor', 'middle')
+        .html('Survival Months');
+
+    var yAxisText = svg.append('text')
+        .attr('x', svgWidth * 0.01)
+        .attr('y', svgHeight * 0.5)
+        .attr('text-anchor', 'middle')
+        .attr('transform', function() {
+            return 'rotate(270,'+ svgWidth*0.02 + ',' + svgHeight*0.5 + ')';
+        })
+        .html('Proportion of patients surviving');
 
 
     // havent made class axis yet, which is why it's commented out
@@ -977,6 +1010,11 @@ function getViableDatasets(survivalArr) {
 // note: "1" is not an integer, but 1 is
 function isInteger(value) {
     return /^\d+$/.test(value);
+}
+
+//capitalize first letter of every word
+function toTitleCase(str) {
+    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 }
 
 // NOTE: The functions below this line are for formating the stage data to make them common across studies

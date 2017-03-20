@@ -397,7 +397,7 @@ module.directive('confirmationTable', ['survival', function (survival) {
                 .attr('class', 'btn btn-default')
                 .html('Submit')
                 .on('click', function () {
-                    survival.getSurvivalData(getChosenStudies(tableData));
+                    survival.getSurvivalData(getChosenStudies(tableData), selectedType);
                 });
         });
     }
